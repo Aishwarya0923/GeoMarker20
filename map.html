@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Stylish Leaflet Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f7f9fc;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h2, h3 {
+      color: #333;
+    }
+
+    #map {
+      height: 500px;
+      width: 100%;
+      border: 3px solid #007BFF;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      animation: fadeIn 1s ease-in;
+    }
+
+    #coordList {
+      margin-top: 15px;
+      padding: 10px;
+      font-family: monospace;
+      background: #ffffff;
+      border: 2px solid #007BFF;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0, 123, 255, 0.1);
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .leaflet-marker-icon {
+      transition: transform 0.2s ease, filter 0.2s ease;
+    }
+
+    .leaflet-marker-icon:hover {
+      transform: scale(1.2);
+      filter: drop-shadow(0 0 6px #007BFF);
+      cursor: grab;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.4); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .animated-marker {
+      animation: popIn 0.4s ease-out;
+    }
+  </style>
+</head>
+<body>
+
+  
+  <div id="map"></div>
+  <h3>📋 Marked Coordinates:</h3>
+  <div id="coordList"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').fitWorld();
+
+    const blueIcon = L.icon({
+      iconUrl: 'https://cdn-icons-png.flaticon.com/512/447/447031.png',
+      iconSize: [35, 35],
+      iconAnchor: [17, 34],
+      popupAnchor: [0, -30],
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      shadowSize: [41, 41],
+      shadowAnchor: [12, 41],
+      className: 'animated-marker'
+    });
+
+    const homeIcon = L.icon({
+      iconUrl: 'https://cdn-icons-png.flaticon.com/512/25/25694.png',
+      iconSize: [38, 38],
+      iconAnchor: [19, 38],
+      popupAnchor: [0, -30],
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      shadowSize: [41, 41],
+      shadowAnchor: [12, 41],
+      className: 'animated-marker'
+    });
+
+    const coordList = document.getElementById('coordList');
+    const markers = [];
+
+    // Map background
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Locate user
+    map.locate({ setView: true, maxZoom: 16 });
+
+    map.on('locationfound', function(e) {
+      L.marker(e.latlng, { icon: homeIcon }).addTo(map)
+        .bindPopup("🏠 You are here!").openPopup();
+
+      L.circle(e.latlng, {
+        radius: e.accuracy,
+        color: '#007BFF',
+        fillColor: '#cce5ff',
+        fillOpacity: 0.4
+      }).addTo(map);
+    });
+
+    map.on('click', function(e) {
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+
+      const marker = L.marker([lat, lng], {
+        icon: blueIcon,
+        draggable: true
+      }).addTo(map)
+      .bindPopup(`Lat: ${lat.toFixed(4)}<br>Lng: ${lng.toFixed(4)}`)
+      .openPopup();
+
+      // Animate marker manually by adding class after DOM paint
+      setTimeout(() => {
+        const el = marker._icon;
+        if (el) el.classList.add('animated-marker');
+      }, 10);
+
+      markers.push({ marker, lat, lng });
+      updateCoordList();
+
+      marker.on('dragend', () => {
+        const newLat = marker.getLatLng().lat;
+        const newLng = marker.getLatLng().lng;
+        marker.setPopupContent(`Lat: ${newLat.toFixed(4)}<br>Lng: ${newLng.toFixed(4)}`);
+        updateCoordList();
+      });
+
+      marker.on('dblclick', () => {
+        map.removeLayer(marker);
+        const index = markers.findIndex(m => m.marker === marker);
+        if (index > -1) markers.splice(index, 1);
+        updateCoordList();
+      });
+    });
+
+    function updateCoordList() {
+      coordList.innerHTML = markers.map((m, i) => {
+        const pos = m.marker.getLatLng();
+        return `#${i+1}: (${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)})`;
+      }).join('<br>');
+    }
+  </script>
+</body>
+</html>
